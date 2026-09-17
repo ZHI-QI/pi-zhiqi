@@ -4,6 +4,8 @@
 
 > 在 pi 里搜 pi.dev 的插件：**中文关键词能搜，描述是中文，↑↓ 选，回车装进当前项目。**
 
+[![npm version](https://img.shields.io/npm/v/pi-zhiqi.svg)](https://www.npmjs.com/package/pi-zhiqi)
+[![npm downloads](https://img.shields.io/npm/dm/pi-zhiqi.svg)](https://www.npmjs.com/package/pi-zhiqi)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22.19-brightgreen.svg)](package.json)
 [![CI](https://github.com/ZHI-QI/pi-zhiqi/actions/workflows/ci.yml/badge.svg)](https://github.com/ZHI-QI/pi-zhiqi/actions/workflows/ci.yml)
