@@ -27,6 +27,20 @@
 | 要手打 `pi install npm:…` | ↑↓ 选、**回车即装** |
 | 装哪了？会不会污染全局？ | 只写**当前项目**的 `.pi/settings.json`，随时 `pi remove` 撤回 |
 
+## 实际界面
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ZHI-QI/pi-zhiqi/main/assets/zhiqi-input.png" width="760" alt="在 pi 里输入 /zhiqi 代理">
+  <br>
+  <sub>① 中文关键词直接搜 —— 输入 <code>/zhiqi 代理</code></sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ZHI-QI/pi-zhiqi/main/assets/zhiqi-results.png" width="760" alt="搜索结果：描述已自动翻成中文，回车即装">
+  <br>
+  <sub>② 描述已自动翻成中文，↑↓ 选、<b>回车装进当前项目</b></sub>
+</p>
+
 ## 30 秒上手
 
 ```bash
@@ -178,7 +192,7 @@ extensions/zhiqi.ts     入口：命令注册 + 网络 + 两级缓存 + TUI + �
 | 层 | 覆盖 | 结果 |
 |---|---|---|
 | 真实类型对账 | `tsc --noEmit`，对真实 `@earendil-works/pi-coding-agent@0.85.1` 类型 | 0 错 |
-| 单元测试 | 44 个，全部打在**真实抓取的 pi.dev 页面**上（`test/fixtures/`） | 44/44 |
+| 单元测试 | 48 个，全部打在**真实抓取的 pi.dev 页面**上（`test/fixtures/`） | 48/48 |
 | 负向对照 | 故意改坏解析器（卡片标记 / 下载量属性名 / 描述节点）、给译文解析喂垃圾 | 改卡片标记 → 8 个失败、`exit 1`；喂垃圾 → 一条都解析不出来；恢复 → 全绿 |
 | 端到端（网络） | 真拉 pi.dev、真解析、`type=extension` 过滤、中文 0 命中的前提 | 4/4 |
 | 端到端（真 pi + 真 pty） | 真的把 pi 跑起来 → 输入 `/zhiqi` → 选择器画出来 → 回车选中 → 出安装命令 | 1/1 |
@@ -189,7 +203,7 @@ extensions/zhiqi.ts     入口：命令注册 + 网络 + 两级缓存 + TUI + �
 
 ```bash
 npm install          # devDependencies 会拉真实 pi 包（约 184MB，仅开发者需要）
-npm test             # typecheck + 44 个单测（离线，秒级）
+npm test             # typecheck + 48 个单测（离线，秒级）
 npm run test:e2e     # 真实网络 + 真实 pty（约 70 秒）
 npm run bench        # 性能数字
 ```
@@ -211,7 +225,7 @@ pi -p "/zhiqi 收集资料 --limit=109"      # 期望真给 109 条（自动翻 
 
 发布由 `.github/workflows/npm-publish.yml` 负责，认证走 **Trusted Publishing(OIDC)—— 不需要任何 npm token**。
 
-- 打 GitHub Release → 自动发布（先跑 typecheck + 44 个单测，再校验 tag/版本一致、防重复发布、校验包内容含 `extensions/*.ts` 与 `NOTICE`）
+- 打 GitHub Release → 自动发布（先跑 typecheck + 48 个单测，再校验 tag/版本一致、防重复发布、校验包内容含 `extensions/*.ts` 与 `NOTICE`）
 - 手动 `workflow_dispatch` → 默认只做 `npm publish --dry-run`
 
 **首次使用前**在 npmjs.com 配一次 Trusted Publisher：<https://www.npmjs.com/package/pi-zhiqi/access> → GitHub Actions，填 `ZHI-QI` / `pi-zhiqi` / `npm-publish.yml`（只填文件名），勾上 `npm publish`。这个动作需要 2FA，只能人工在网页上做；配好后 workflow 里的 `id-token: write` 就是全部所需权限（故意不存 `NPM_TOKEN`）。
@@ -249,6 +263,20 @@ git push && git push --tags
 | Descriptions are English-only | **Descriptions are translated to Simplified Chinese**, cached forever |
 | Type `pi install npm:…` by hand | Pick with ↑↓, **Enter installs** |
 | Where did it go? Global pollution? | Writes only **this project's** `.pi/settings.json`; undo with `pi remove` |
+
+## Screenshots
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ZHI-QI/pi-zhiqi/main/assets/zhiqi-input.png" width="760" alt="Typing /zhiqi 代理 inside pi">
+  <br>
+  <sub>① Search in Chinese — type <code>/zhiqi 代理</code></sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ZHI-QI/pi-zhiqi/main/assets/zhiqi-results.png" width="760" alt="Results with Chinese descriptions; Enter installs">
+  <br>
+  <sub>② Descriptions arrive in Chinese; pick with ↑↓ and press <b>Enter to install into this project</b></sub>
+</p>
 
 ## Quick start
 
@@ -361,7 +389,7 @@ Parsing avoids a DOM entirely: one `indexOf` splits the cards, pre-compiled rege
 
 ## Verification
 
-44 unit tests run against **real captured pi.dev pages** (never hand-written HTML), plus negative controls that must fail when the parser is deliberately broken, plus a real-pi real-pty end-to-end test. See the run commands above. The only untested path is the actual `pi install` execution — the e2e suite uses `--dry` and asserts on the generated command.
+48 unit tests run against **real captured pi.dev pages** (never hand-written HTML), plus negative controls that must fail when the parser is deliberately broken, plus a real-pi real-pty end-to-end test. See the run commands above. The only untested path is the actual `pi install` execution — the e2e suite uses `--dry` and asserts on the generated command.
 
 ## License
 
