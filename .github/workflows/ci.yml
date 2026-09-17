@@ -1,0 +1,51 @@
+name: ci
+
+# push / PR 时跑**离线可复现**的那一层：类型检查 + 44 个单元测试。
+# 单测全部打在真实抓取的 pi.dev 页面 fixture 上（test/fixtures/），不依赖网络。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支的新提交取消旧的 run,省 runner 时间
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 类型检查 + 单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      # typecheck 是独立一层:tsdown/rolldown/esbuild 之类只剥离类型不做检查,
+      # 所以构建通过 ≠ 类型正确。本包没有构建步骤,typecheck 更不能被省。
+      # 它对着真实 @earendil-works/pi-coding-agent 类型做对账(devDependencies 里那份)。
+      - name: 类型检查 + 单元测试
+        run: npm test
+
+      # 明确写出未覆盖的部分 —— 不要让 CI 全绿被误读成"全都验过了"
+      - name: 声明未覆盖范围
+        run: |
+          echo "✅ 本 job 覆盖：tsc --noEmit 对真实 pi 类型 + 44 个单元测试（离线，打真实页面 fixture）"
+          echo "❌ 未覆盖：npm run test:e2e"
+          echo "   - 需要真实网络（拉 pi.dev）"
+          echo "   - 需要 pi 可执行文件（真进程 + 真 TUI）"
+          echo "   - 需要 expect（伪终端驱动）"
+          echo "   - 需真模型的那两条路径（关键词翻译 / 描述翻译）只能手工验"
