@@ -423,6 +423,20 @@ export function keywordCandidatesFrom(text: string, max = 3): string[] {
 	return found;
 }
 
+/**
+ * 决定最终展示顺序。
+ *
+ * 只在服务端按**下载量**排序（默认）时做本地重排 —— 把「名字里真含关键词」的包提上来，
+ * 修掉服务端模糊匹配把「只命中描述」的包排到真·名字命中的包前面的问题。
+ *
+ * 用户显式要了 `--sort=recent` / `--sort=name` 时**必须完整尊重服务端顺序**：
+ * 否则本地重排会把最新的包压到后面，「最近发布」这个开关就形同虚设
+ * （真踩过：三种 sort 跑出来一模一样，因为展示顺序全被本地重排盖掉了）。
+ */
+export function orderResults(items: CatalogItem[], query: string, sort: SortMode): CatalogItem[] {
+	return sort === "downloads" ? rankItems(items, query) : items;
+}
+
 const STOP_WORDS = new Set([
 	"the", "and", "for", "with", "that", "this", "you", "your", "and", "are", "was", "were", "will", "can", "could",
 	"would", "should", "keyword", "keywords", "search", "terms", "term", "english", "pi", "packages", "package",

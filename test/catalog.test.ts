@@ -27,6 +27,7 @@ import {
 	pagesNeeded,
 	parseCatalog,
 	parseCountText,
+	orderResults,
 	parseTranslationResponse,
 	rankItems,
 	translationKey,
@@ -392,6 +393,52 @@ test("负向对照：完全不相干的输出必须一条都解析不出来", ()
 
 test("parseTranslationResponse 的 expected=0 不抛异常", () => {
 	assert.deepEqual(parseTranslationResponse('[{"i":1,"zh":"x"}]', 0), []);
+});
+
+/* ────────────────── 最终展示顺序：本地重排只对 downloads 生效 ────────────────── */
+
+test("orderResults：默认（downloads）做本地重排，名字命中的浮上来", () => {
+	const serverOrder = [
+		makeItem({ name: "pi-obsidian", downloads: 9999, search: "obsidian ... mermaid ..." }),
+		makeItem({ name: "pi-mermaid", downloads: 10 }),
+	];
+	assert.deepEqual(
+		orderResults(serverOrder, "mermaid", "downloads").map((item) => item.name),
+		["pi-mermaid", "pi-obsidian"],
+	);
+});
+
+test("orderResults：--sort=recent / --sort=name 必须完整尊重服务端顺序", () => {
+	// 服务端按「最近」给的顺序：最新在前，但下载量低、名字里也不含关键词
+	const serverOrder = [
+		makeItem({ name: "@yassimba/pi-loom-mermaid", downloads: 393, ago: "2d ago" }),
+		makeItem({ name: "pi-canvas", downloads: 140, ago: "4d ago" }),
+		makeItem({ name: "pi-mermaid", downloads: 2204, ago: "6mo ago" }),
+	];
+	assert.deepEqual(
+		orderResults(serverOrder, "mermaid", "recent").map((item) => item.name),
+		["@yassimba/pi-loom-mermaid", "pi-canvas", "pi-mermaid"],
+	);
+	assert.deepEqual(
+		orderResults(serverOrder, "mermaid", "name").map((item) => item.name),
+		["@yassimba/pi-loom-mermaid", "pi-canvas", "pi-mermaid"],
+	);
+});
+
+test("负向对照：无脑重排会毁掉 recent 顺序（证明 orderResults 的开关是必要的）", () => {
+	const serverOrder = [
+		makeItem({ name: "@yassimba/pi-loom-mermaid", downloads: 393, ago: "2d ago" }),
+		makeItem({ name: "pi-canvas", downloads: 140, ago: "4d ago" }),
+		makeItem({ name: "pi-mermaid", downloads: 2204, ago: "6mo ago" }),
+	];
+	const naive = rankItems(serverOrder, "mermaid").map((item) => item.name);
+	// 无脑重排会把 6 个月前的 pi-mermaid 顶到第一位 —— 这正是修前的真实行为
+	assert.equal(naive[0], "pi-mermaid", "朴素重排确实会打乱服务端的 recent 顺序");
+	assert.notDeepEqual(naive, orderResults(serverOrder, "mermaid", "recent").map((item) => item.name));
+	// 三种 sort 不能再给出同一个顺序
+	const byDownloads = orderResults(serverOrder, "mermaid", "downloads").map((item) => item.name);
+	const byRecent = orderResults(serverOrder, "mermaid", "recent").map((item) => item.name);
+	assert.notDeepEqual(byDownloads, byRecent);
 });
 
 /* ────────────────── 多页合并与翻页计算 ────────────────── */

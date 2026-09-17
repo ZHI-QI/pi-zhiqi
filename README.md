@@ -107,7 +107,7 @@ $ pi -p "/zhiqi mermaid --limit=1"
 /zhiqi <关键词> [选项]
 
   --type=extension|skill|theme|prompt   只看某一类资源
-  --sort=downloads|recent|name          排序（默认 downloads）
+  --sort=downloads|recent|name          排序（默认 downloads；recent/name 时完全按服务端顺序）
   --page=N                              第 N 页（服务端每页 50 条）
   --limit=N                             展示条数，默认 50（= 1 页），上限 200（超过一页自动翻页）
   --en                                  不翻译，直接看英文原文（不调模型）
@@ -119,6 +119,7 @@ $ pi -p "/zhiqi mermaid --limit=1"
 
 - 不带关键词会弹输入框。
 - 选择器里**直接打字就能过滤**（增量搜索）。
+- **排序语义**：默认按下载量，并在其之上做一次**本地重排** —— 名字里真含关键词的排前面（服务端的模糊匹配会把只命中描述的包排得更高）。显式指定 `--sort=recent` / `--sort=name` 时**完全按服务端顺序**，不做重排。
 - 搜索结果缓存在 `$PI_CODING_AGENT_DIR/zhiqi-cache.json`，TTL 10 分钟，可用 `ZHIQI_CACHE_TTL_MS` 覆盖。
 
 ### 命中 109 条，为什么只显示 50 条？
@@ -155,7 +156,7 @@ pi 包以你的完整系统权限运行 —— **装之前请自己确认来源*
 ## 已知边界（都是有意选的，不是没做）
 
 - **非 TUI 模式没有选择器**：`print` 模式打印纯文本清单（可 `--json`），`rpc`/`json` 模式只发一条通知（避免污染 stdout 上的协议流）。中文翻译三种模式都生效。
-- **服务端过滤是模糊匹配**：搜 `diagram` 会混进只在描述/关键词里命中的包，所以本地做了一次重排 —— 名字里真含关键词的排前，同桶内再按下载量。
+- **服务端过滤是模糊匹配**：搜 `diagram` 会混进只在描述/关键词里命中的包，所以默认排序下本地会再重排一次 —— 名字里真含关键词的排前，同桶内再按下载量（`--sort=recent|name` 时不重排）。
 - **依赖 pi.dev 的 HTML 结构**：它没有 JSON API（`/packages.json`、`/api/packages` 都不存在），只能解析服务端渲染的 HTML。改版时 e2e 里的「改版哨兵」会先炸，**不会安静地返回 0 条**。
 - 单次解析只取 `?page=` 一页（最多 50 条）。
 
@@ -314,7 +315,7 @@ Fallbacks: model unavailable / not logged in / 25s timeout / model returns fewer
 /zhiqi <query> [options]
 
   --type=extension|skill|theme|prompt   restrict to one resource type
-  --sort=downloads|recent|name          sort order (default: downloads)
+  --sort=downloads|recent|name          sort order (default: downloads; recent/name are passed through untouched)
   --page=N                              page N (the server caps pages at 50 items)
   --limit=N                             items to show; default 50 (= 1 page), max 200 (auto-pages)
   --en                                  skip translation (no model call)
@@ -343,7 +344,7 @@ Fallbacks: model unavailable / not logged in / 25s timeout / model returns fewer
 ## Known boundaries (intentional, not missing)
 
 - **No picker outside the TUI**: `print` mode prints a plain list (`--json` available); `rpc`/`json` emit a notification only, to avoid corrupting the protocol stream on stdout. Translation works in all three modes.
-- **Server-side filtering is fuzzy** (searching `diagram` also returns packages that merely mention it), so results are re-ranked locally: names containing the query first, then by downloads.
+- **Server-side filtering is fuzzy** (searching `diagram` also returns packages that merely mention it), so under the default sort results are re-ranked locally: names containing the query first, then by downloads. With `--sort=recent|name` the server order is passed through untouched.
 - **It depends on pi.dev's HTML structure** — there is no JSON API (`/packages.json` and `/api/packages` both 404/501). A redesign trips a "sentinel" test in the e2e suite instead of silently returning zero results.
 - One page per request (max 50 items), with optional auto-paging.
 

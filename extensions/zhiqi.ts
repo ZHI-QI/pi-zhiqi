@@ -39,10 +39,10 @@ import {
 	mergeCatalogItems,
 	PACKAGE_TYPES,
 	type PackageType,
+	orderResults,
 	pagesNeeded,
 	parseCatalog,
 	parseTranslationResponse,
-	rankItems,
 	SORT_MODES,
 	type SortMode,
 	translationKey,
@@ -112,7 +112,7 @@ const HELP_LINES = [
 	"",
 	"选项:",
 	"  --type=extension|skill|theme|prompt   只看某一类资源",
-	"  --sort=downloads|recent|name          排序（默认 downloads）",
+	"  --sort=downloads|recent|name          排序（默认 downloads；recent/name 时完全按服务端顺序）",
 	"  --page=N                              第 N 页（每页 50 条）",
 	"  --limit=N                             展示条数，默认 50（= 1 页），上限 200（超过一页会自动翻页）",
 	"  --en                                 不翻译，直接看英文原文（不调模型）",
@@ -566,7 +566,7 @@ async function collectMatches(
 	}
 
 	return {
-		snapshot: { ...first.snapshot, items: rankItems(mergeCatalogItems(pages), query) },
+		snapshot: { ...first.snapshot, items: orderResults(mergeCatalogItems(pages), query, args.sort) },
 		fromCache,
 		...(notes.length > 0 ? { note: notes.join(" · ") } : {}),
 	};
@@ -875,8 +875,8 @@ const COMPLETIONS: readonly AutocompleteItem[] = [
 	{ value: "--type=skill", label: "--type=skill", description: "只看 skill" },
 	{ value: "--type=theme", label: "--type=theme", description: "只看主题" },
 	{ value: "--type=prompt", label: "--type=prompt", description: "只看 prompt 模板" },
-	{ value: "--sort=recent", label: "--sort=recent", description: "按最近发布排序" },
-	{ value: "--sort=name", label: "--sort=name", description: "按名字排序" },
+	{ value: "--sort=recent", label: "--sort=recent", description: "按最近发布排序（不做本地重排）" },
+	{ value: "--sort=name", label: "--sort=name", description: "按名字排序（不做本地重排）" },
 	{ value: "--page=", label: "--page=", description: "翻页（每页 50 条）" },
 	{ value: "--limit=", label: "--limit=", description: "展示条数，默认 50（= 1 页），上限 200" },
 	{ value: "--en", label: "--en", description: "不翻译，直接看英文原文（不调模型）" },
