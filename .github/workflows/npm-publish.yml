@@ -108,10 +108,14 @@ jobs:
           done
           echo "✓ 包内容完整"
 
-      # Trusted Publishing 要求 npm CLI >= 11.5.1(runner 自带的可能偏旧)
+      # Trusted Publishing 要求 npm CLI >= 11.5.1。
+      # ⚠️ 不要写 npm@latest:npm 12 的 engines 是 {"node":"^22.22.2 || ^24.15.0 || >=26.0.0"},
+      # 而本仓库 engines 只保证 node >=22.19 —— 只要 runner 的 22.x 落在 22.19~22.22.1 之间,
+      # 装 npm@latest 就会 EBADENGINE 直接失败(本机 node 22.22.1 实测踩到过)。
+      # 钉 npm@^11.5.1:engines 是 ^20.17.0 || >=22.9.0,既满足门槛又兼容 node 22.x。
       - name: 确保 npm >= 11.5.1(trusted publishing 需要)
         run: |
-          npm install -g npm@latest
+          npm install -g "npm@^11.5.1"
           echo "npm $(npm -v)"
           node -e "const [maj,min]=require('child_process').execSync('npm -v').toString().trim().split('.').map(Number); if (maj<11 || (maj===11&&min<5)) { console.error('::error::npm 版本过低,无法用 trusted publishing'); process.exit(1) }"
 
