@@ -47,7 +47,7 @@ pi install npm:pi-zhiqi                          # 或：pi install git:github.c
 ────────────────────────────────────────────────────────────────────────────────────
 ```
 
-回车 → 执行 `pi install npm:@senad-d/drawme -l` → `/reload` 生效。
+回车 → 执行 `pi install npm:@senad-d/drawme -l -a` → `/reload` 生效。
 
 ## 三条硬指标
 
@@ -84,7 +84,7 @@ $ pi -p "/zhiqi mermaid --limit=1"
  1. pi-mermaid  [extension]  2.2K/mo  6mo ago
     在 TUI 里把 Mermaid 图表渲染成 ASCII
     EN: 🧜‍♀️ Pi extension that renders Mermaid diagrams as ASCII in the TUI
-    pi install npm:pi-mermaid -l
+    pi install npm:pi-mermaid -l -a
 ```
 
 **译文按「包名 + 描述哈希」永久缓存**在 `~/.pi/agent/zhiqi-zh.json`：同一个包一辈子只花一次 token —— 之后不管搜多少次、换什么关键词、换哪个项目，都是缓存命中、零模型调用。不想要中文加 `--en`。
@@ -141,7 +141,7 @@ pi.dev 目录 · "收集资料" → research · 显示 50 / 109 命中 / 共 564
 ## 常见问题
 
 **装到哪了？会不会动我的全局配置？**
-只写**当前项目**的 `.pi/settings.json`（底层执行 `pi install npm:<包> -l`），包装在 `.pi/npm/` 下。不动全局。
+只写**当前项目**的 `.pi/settings.json`（底层执行 `pi install npm:<包> -l -a`，`-a` 是授权写未受信任的项目配置 —— 子进程没有 TTY，没法弹信任确认），包装在 `.pi/npm/` 下。不动全局。
 
 **怎么撤掉？**
 `pi remove npm:<包名>`（或删掉 `.pi/settings.json` 里那一行）。
@@ -270,7 +270,7 @@ pi install npm:pi-zhiqi                          # or: pi install git:github.com
 ────────────────────────────────────────────────────────────────────────────────────
 ```
 
-Press Enter → runs `pi install npm:@senad-d/drawme -l` → `/reload` to activate.
+Press Enter → runs `pi install npm:@senad-d/drawme -l -a` → `/reload` to activate.
 
 ## Three hard guarantees
 
@@ -335,7 +335,7 @@ Fallbacks: model unavailable / not logged in / 25s timeout / model returns fewer
 
 **It says 109 hits but only shows 50?** The pi.dev server pages at 50. The header always states shown vs. hits, so nothing is hidden: `showing 50 / 109 hits`. Ask for more with `--limit=200` (it auto-pages, and reads page 1 first to know how many pages are needed).
 
-**Will it touch my global config?** No. It runs `pi install npm:<pkg> -l`, which writes this project's `.pi/settings.json` only.
+**Will it touch my global config?** No. It runs `pi install npm:<pkg> -l -a` (`-a` approves writing an untrusted project config — the child process has no TTY to prompt), which writes this project's `.pi/settings.json` only.
 
 **How do I undo?** `pi remove npm:<pkg>`, or delete that line from `.pi/settings.json`.
 

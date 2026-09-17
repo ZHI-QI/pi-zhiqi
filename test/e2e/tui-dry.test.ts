@@ -75,7 +75,7 @@ test("真实 TUI：/zhiqi 画出选择器，回车选中后给出安装命令", 
 		// 3) 回车选中后真的走到了安装分支
 		assert.match(
 			screen,
-			new RegExp(`\\[dry-run\\] pi install npm:${QUERY_PACKAGE} -l`),
+			new RegExp(`\\[dry-run\\] pi install npm:${QUERY_PACKAGE} -l -a`),
 			"回车选中后没有出现预期的安装命令",
 		);
 		// 4) --dry 不该碰磁盘

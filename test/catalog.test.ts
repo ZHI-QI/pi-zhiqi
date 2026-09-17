@@ -22,6 +22,7 @@ import {
 	formatDownloads,
 	hasCJK,
 	installCommandFor,
+	isValidPackageName,
 	keywordCandidatesFrom,
 	mergeCatalogItems,
 	pagesNeeded,
@@ -286,8 +287,18 @@ test("describeItem 的中文译文过长会被截断，且 zh 为空时回退英
 });
 
 test("installCommandFor 用官方项目级安装命令", () => {
-	assert.equal(installCommandFor("pi-mermaid"), "pi install npm:pi-mermaid -l");
-	assert.equal(installCommandFor("@mcuste/pi-diagram"), "pi install npm:@mcuste/pi-diagram -l");
+	assert.equal(installCommandFor("pi-mermaid"), "pi install npm:pi-mermaid -l -a");
+	assert.equal(installCommandFor("@mcuste/pi-diagram"), "pi install npm:@mcuste/pi-diagram -l -a");
+});
+
+test("isValidPackageName 只放行合法 npm 包名", () => {
+	for (const name of ["pi-mermaid", "@mcuste/pi-diagram", "pi.diagram", "pi_diagram", "a"]) {
+		assert.equal(isValidPackageName(name), true, `${name} 应当合法`);
+	}
+	// 安装命令在 Windows 下经 cmd.exe 拼接，这些字符必须一个都不能过
+	for (const name of ["", "pi mermaid", "pi&calc", "pi|calc", "pi>out", "pi;rm", "pi%PATH%", 'pi"x', "pi$x", "../etc", "@scope"]) {
+		assert.equal(isValidPackageName(name), false, `${name} 应当被拦下`);
+	}
 });
 
 /* ────────────────── 模型关键词提取 ────────────────── */

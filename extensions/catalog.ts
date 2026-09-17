@@ -399,8 +399,20 @@ export function rankItems(items: CatalogItem[], query: string): CatalogItem[] {
  * 安装命令的可读形式（也用于 --dry）。
  * 用官方 CLI：写进项目 .pi/settings.json，pi 负责装到 .pi/npm 并注册资源。
  */
+/**
+ * npm 包名白名单（可带 scope）。
+ *
+ * pi.dev 页面的 `data-package-name` 会被拼进安装命令行，而且 Windows 下必须经
+ * `cmd.exe` 启动 —— 不校验就等于把目录页的内容直接交给 shell。
+ */
+const NPM_PACKAGE_NAME_RE = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i;
+
+export function isValidPackageName(name: string): boolean {
+	return NPM_PACKAGE_NAME_RE.test(name);
+}
+
 export function installCommandFor(name: string): string {
-	return `pi install npm:${name} -l`;
+	return `pi install npm:${name} -l -a`;
 }
 
 /** 从模型回复里尽量多取候选关键词（去重、保序、只留纯 ASCII 词）。 */

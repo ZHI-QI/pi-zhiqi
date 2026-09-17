@@ -18,6 +18,7 @@
  *                   [--page=N] [--limit=N] [--fresh] [--dry] [--json] [--clear] [--help]
  */
 
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -35,6 +36,7 @@ import {
 	formatDownloads,
 	hasCJK,
 	installCommandFor,
+	isValidPackageName,
 	keywordCandidatesFrom,
 	mergeCatalogItems,
 	PACKAGE_TYPES,
@@ -669,11 +671,84 @@ interface InstallOutcome {
 	message: string;
 }
 
-async function runInstall(pi: ExtensionAPI, ctx: ExtensionCommandContext, name: string, signal?: AbortSignal): Promise<InstallOutcome> {
+interface PiExecResult {
+	code: number;
+	stdout: string;
+	stderr: string;
+}
+
+/**
+ * 跑 `pi install`。
+ *
+ * 为什么不用 `pi.exec`：它各平台都是 `spawn(cmd, { shell: false })`。Windows 上
+ * npm 全局装的 `pi` 实际是 `pi.cmd`（无扩展名的那个是 POSIX sh 脚本），
+ * Node 18.20+/20.12+ 起禁止 shell:false 直启 `.cmd`/`.bat`（EINVAL），
+ * 而 spawn 的 error 事件会被 pi.exec 兜成 `{ code: 1, stdout: "", stderr: "" }` ——
+ * 界面上就只剩一句没有任何细节的「安装失败（exit 1）」。
+ *
+ * 所以 Windows 显式走 `cmd.exe /d /s /c`；调用方必须先过 `isValidPackageName`，
+ * 命令行拼接才是安全的。
+ */
+function execPi(
+	args: readonly string[],
+	options: { cwd: string; timeoutMs?: number; signal?: AbortSignal },
+): Promise<PiExecResult> {
+	const isWindows = process.platform === "win32";
+	const command = isWindows ? process.env.ComSpec ?? "cmd.exe" : "pi";
+	const commandArgs = isWindows ? ["/d", "/s", "/c", "pi", ...args] : [...args];
+	const timeoutMs = options.timeoutMs;
+	return new Promise((resolvePromise) => {
+		let stdout = "";
+		let stderr = "";
+		let settled = false;
+		const child = spawn(command, commandArgs, {
+			cwd: options.cwd,
+			shell: false,
+			stdio: ["ignore", "pipe", "pipe"],
+			...(options.signal ? { signal: options.signal } : {}),
+		});
+		const timer =
+			timeoutMs && timeoutMs > 0
+				? setTimeout(() => {
+						stderr += `\n[zhiqi] 安装超过 ${Math.round(timeoutMs / 1000)}s，已终止`;
+						child.kill();
+					}, timeoutMs)
+				: undefined;
+		const finish = (code: number): void => {
+			if (settled) return;
+			settled = true;
+			if (timer) clearTimeout(timer);
+			resolvePromise({ code, stdout, stderr });
+		};
+		child.stdout?.on("data", (data: Buffer) => {
+			stdout += data.toString();
+		});
+		child.stderr?.on("data", (data: Buffer) => {
+			stderr += data.toString();
+		});
+		// error = 进程根本没起来（ENOENT/EINVAL/被 signal 打断）。明确报 127，
+		// 让上层走「请手动执行」而不是又一次沉默的 exit 1。
+		child.on("error", (error: Error) => {
+			stderr += `${stderr ? "\n" : ""}${error.message}`;
+			finish(options.signal?.aborted ? 1 : 127);
+		});
+		child.on("close", (code) => {
+			finish(code ?? (options.signal?.aborted ? 1 : 0));
+		});
+	});
+}
+
+async function runInstall(_pi: ExtensionAPI, ctx: ExtensionCommandContext, name: string, signal?: AbortSignal): Promise<InstallOutcome> {
+	if (!isValidPackageName(name)) {
+		return { ok: false, message: `包名不合法：${name}\n请手动执行:\n  ${installCommandFor(name)}` };
+	}
 	try {
-		const result = await pi.exec("pi", ["install", `npm:${name}`, "-l"], {
+		// `-a`：用户是在 TUI 里明确选中后安装的。不带它时，项目一旦已有
+		// .pi/settings.json 又未受信任，pi 会以 "Project is not trusted" 直接失败
+		// （非交互子进程没有 TTY，没法弹信任确认）。
+		const result = await execPi(["install", `npm:${name}`, "-l", "-a"], {
 			cwd: ctx.cwd,
-			timeout: INSTALL_TIMEOUT_MS,
+			timeoutMs: INSTALL_TIMEOUT_MS,
 			...(signal ? { signal } : {}),
 		});
 		if (result.code === 0) {
@@ -683,7 +758,7 @@ async function runInstall(pi: ExtensionAPI, ctx: ExtensionCommandContext, name: 
 		if (result.code === 127) {
 			return { ok: false, message: `找不到 pi 可执行文件，请手动执行:\n  ${installCommandFor(name)}` };
 		}
-		return { ok: false, message: `安装失败（exit ${result.code}）\n${detail}` };
+		return { ok: false, message: `安装失败（exit ${result.code}）${detail ? `\n${detail}` : ""}` };
 	} catch (error) {
 		return { ok: false, message: `安装失败: ${error instanceof Error ? error.message : String(error)}` };
 	}
