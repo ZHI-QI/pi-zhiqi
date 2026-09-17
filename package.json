@@ -45,7 +45,8 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && node --test \"test/*.test.ts\"",
     "test:e2e": "node --test \"test/e2e/*.test.ts\"",
-    "bench": "node bench/bench.ts"
+    "bench": "node bench/bench.ts",
+    "prepublishOnly": "npm test"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
