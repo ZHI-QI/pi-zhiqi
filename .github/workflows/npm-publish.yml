@@ -1,0 +1,133 @@
+name: npm-publish
+
+# 发布到 npm 的两条路径:
+#   1) GitHub Release 发布 → 自动发布到 npm(打 latest 标签)
+#   2) 手动触发(workflow_dispatch)→ 默认只做 dry-run,确认无误后把 dry_run 关掉
+#
+# 认证方式:Trusted Publishing(OIDC)—— **不需要任何 npm token**。
+#
+# 为什么不用 token(2026 年的现实):
+#   - npm 自 2025-11 起不再支持经典 access token,只认 granular token
+#   - 而 granular token 里「绕过 2FA」的那类,自 2026-07-31 起也不能直接发布了
+#     (实测报 403:You may not perform that action with these credentials)
+#   - 所以 CI 发布的正路是 OIDC:npm 用本次 workflow 的 OIDC 身份换一个短时 token
+#
+# 前置条件(在 npmjs.com 配一次,不是在这里配):
+#   打开 https://www.npmjs.com/package/pi-zhiqi/access → Trusted Publisher
+#   选择 GitHub Actions,填:
+#     Organization or user : ZHI-QI
+#     Repository           : pi-zhiqi
+#     Workflow filename    : npm-publish.yml   (只填文件名,不带路径)
+#     Allowed actions      : 勾上 npm publish
+#   配置这个动作本身需要 2FA,所以只能你手动做。
+#   配好后本文件里的 id-token: write 就是全部所需权限。
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只做打包校验,不真正发布"
+        type: boolean
+        default: true
+
+# 发布是串行的:同一时间只允许一个发布任务,避免两个 run 撞版本
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # npm provenance(供应链证明)需要 id-token
+  id-token: write
+
+jobs:
+  publish:
+    name: 校验并发布
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      # 本插件运行时**零第三方依赖**,但这层要装真实 pi 类型来做 typecheck。
+      # 注意:tsdown/rolldown 之类只剥离类型不做检查,所以 typecheck 必须独立一层。
+      - name: 类型检查 + 单元测试
+        run: npm test
+
+      - name: 发布元信息
+        id: meta
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "name=$NAME"       >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "打包 $NAME@$VERSION"
+
+      # Release 触发时,校验 tag 与 package.json 版本一致,防止"tag 打了 v1.2.0 却发 1.1.0"
+      - name: 校验 Release tag 与 package.json 版本一致
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG="${TAG#v}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Release tag($TAG)与 package.json 版本($VERSION)不一致"
+            exit 1
+          fi
+          echo "✓ tag $TAG 与 package.json 一致"
+
+      # 防重复发布:npm 不允许覆盖已存在版本
+      - name: 确认该版本尚未发布
+        run: |
+          NAME="${{ steps.meta.outputs.name }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::$NAME@$VERSION 已存在于 npm,请先 bump version 再发 Release"
+            exit 1
+          fi
+          echo "✓ $NAME@$VERSION 尚未发布"
+
+      # 关键守卫:extensions/ 不在 .gitignore 里,但 files 字段配错就会漏文件 ——
+      # pi 只认 pi.extensions 指向的那个 .ts,漏了就是装了不报错但没命令。这里拦住。
+      - name: 校验包内容(必须含 extensions/*.ts)
+        run: |
+          npm pack --dry-run 2>&1 | tee /tmp/pack.txt
+          for f in "extensions/zhiqi.ts" "extensions/catalog.ts" "package.json" "README.md" "LICENSE"; do
+            grep -q "$f" /tmp/pack.txt || { echo "::error::包内容缺少 $f"; exit 1; }
+          done
+          echo "✓ 包内容完整"
+
+      # Trusted Publishing 要求 npm CLI >= 11.5.1(runner 自带的可能偏旧)
+      - name: 确保 npm >= 11.5.1(trusted publishing 需要)
+        run: |
+          npm install -g npm@latest
+          echo "npm $(npm -v)"
+          node -e "const [maj,min]=require('child_process').execSync('npm -v').toString().trim().split('.').map(Number); if (maj<11 || (maj===11&&min<5)) { console.error('::error::npm 版本过低,无法用 trusted publishing'); process.exit(1) }"
+
+      - name: Publish(dry-run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: npm publish --dry-run
+
+      - name: Publish
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: npm publish --provenance --access public
+        # 注:这里故意不设 NODE_AUTH_TOKEN —— 认证走 OIDC(id-token: write),
+        # npm 会自动用本次 workflow 的身份换短时 token。
+        # 配了 trusted publisher 后,存 NPM_TOKEN 反而会误导。
+
+      - name: 发布结果
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: |
+          echo "✅ 已发布 ${{ steps.meta.outputs.name }}@${{ steps.meta.outputs.version }}"
+          echo "https://www.npmjs.com/package/${{ steps.meta.outputs.name }}"

@@ -1,0 +1,61 @@
+{
+  "name": "pi-zhiqi",
+  "version": "0.1.0",
+  "description": "把 pi.dev 包目录搬进 pi TUI：搜 → 选 → 装到当前项目。结果描述自动翻成简体中文，中文关键词也能搜。Zero-dependency, zero-startup-cost pi.dev catalog browser for pi — search, pick, install into the current project, with Simplified-Chinese descriptions.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi",
+    "catalog",
+    "search",
+    "installer",
+    "pi.dev",
+    "chinese",
+    "i18n",
+    "tui"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZHI-QI/pi-zhiqi.git"
+  },
+  "homepage": "https://github.com/ZHI-QI/pi-zhiqi#readme",
+  "bugs": {
+    "url": "https://github.com/ZHI-QI/pi-zhiqi/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/zhiqi.ts"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && node --test \"test/*.test.ts\"",
+    "test:e2e": "node --test \"test/e2e/*.test.ts\"",
+    "bench": "node bench/bench.ts"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@earendil-works/pi-tui": "^0.85.1",
+    "@types/node": "^22.10.0",
+    "jiti": "^2.7.0",
+    "typescript": "^5.9.0",
+    "yaml": "^2.9.1"
+  }
+}

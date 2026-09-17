@@ -1,0 +1,76 @@
+#!/usr/bin/expect -f
+#
+# 用伪终端（pty）真跑一次 /zhiqi 的 TUI 交互，把整屏（含 ANSI）写进日志。
+# pi 的交互界面需要真实 TTY，agent 的非交互 shell 里直接跑会挂死，所以走 expect。
+#
+#   expect drive-tui.exp <日志> <扩展路径> <agent目录> <工作目录> <命令文本> <esc|enter> <就绪标记正则>
+#
+# esc   = 看到选择器就取消（不装任何东西，最安全）
+# enter = 选中第一项，按当前命令是否带 --dry 决定是「真装」还是「只打印安装命令」
+#
+# ⚠️ 三个踩过的坑，改这个脚本前先读：
+#
+#  1) **expect 只在它自己读 pty 时才把数据写进 log_file**。脚本里如果全是 sleep，
+#     日志里只会有一行 spawn。所以必须用 expect -re 等真实输出（既同步又落盘），
+#     结尾还要 expect eof 抽干缓冲区。早期版本就是这么白等了两轮。
+#  2) **就绪标记必须用 ASCII**。pi 的提示行是中文（三字节，Tcl 能处理），
+#     但 emoji 是四字节，macOS 自带 expect 是 Tcl 8.5（TCL_UTF_MAX=3），
+#     会把它们拆成 4 个 latin-1 字符。这是**采集工具**的问题，不是 pi、也不是插件的问题：
+#     同一段输出经 expect 是 c3b0 c29f c2a7 c29c，经纯 bash 重定向是 f09f a79c。
+#     日志里 emoji 变"乱码"请忽略，别据此改插件。
+#  3) 子进程可能先于 close 退出，所以 close 要 catch。
+
+set timeout 120
+set logfile  [lindex $argv 0]
+set extpath  [lindex $argv 1]
+set agentdir [lindex $argv 2]
+set workdir  [lindex $argv 3]
+set command  [lindex $argv 4]
+set action   [lindex $argv 5]
+set ready    [lindex $argv 6]
+if {$ready eq ""} { set ready "pi-zhiqi-ready-fallback" }
+
+log_user 0
+log_file -a $logfile
+
+spawn env TERM=xterm-256color PI_CODING_AGENT_DIR=$agentdir PI_SKIP_VERSION_CHECK=1 \
+	pi -ne -e $extpath --no-session --session-dir $agentdir/sessions
+
+# TUI 首屏
+set timeout 30
+expect {
+	-re "shortcuts|pi\\.dev|Model" { }
+	timeout { }
+}
+
+send "$command"
+sleep 1
+send "\r"
+
+# 等选择器真的画出来（同时把缓冲抽进日志）
+set timeout 40
+expect {
+	-re $ready { }
+	timeout { puts "TIMEOUT: 选择器未出现" }
+}
+sleep 1
+
+if {$action eq "enter"} {
+	send "\r"
+	# 这里刻意用固定 sleep 而不是 expect -re：pi 的通知文本里夹着 ANSI 颜色码，
+	# 连 "dry-run" 都可能被打断，用正则等很容易假超时。
+	# 真正的断言一律打在**清洗过的日志**上（见 test/e2e/tui-dry.test.ts）。
+	sleep 12
+} else {
+	send "\x1b"
+}
+
+sleep 1
+send "/quit"
+sleep 1
+send "\r"
+
+set timeout 25
+expect eof
+catch { close }
+exit 0
