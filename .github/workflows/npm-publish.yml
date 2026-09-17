@@ -103,7 +103,7 @@ jobs:
       - name: 校验包内容(必须含 extensions/*.ts)
         run: |
           npm pack --dry-run 2>&1 | tee /tmp/pack.txt
-          for f in "extensions/zhiqi.ts" "extensions/catalog.ts" "package.json" "README.md" "LICENSE"; do
+          for f in "extensions/zhiqi.ts" "extensions/catalog.ts" "package.json" "README.md" "LICENSE" "NOTICE"; do
             grep -q "$f" /tmp/pack.txt || { echo "::error::包内容缺少 $f"; exit 1; }
           done
           echo "✓ 包内容完整"
