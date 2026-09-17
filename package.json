@@ -1,6 +1,6 @@
 {
   "name": "pi-zhiqi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "把 pi.dev 包目录搬进 pi TUI：搜 → 选 → 装到当前项目。结果描述自动翻成简体中文，中文关键词也能搜。Zero-dependency, zero-startup-cost pi.dev catalog browser for pi — search, pick, install into the current project, with Simplified-Chinese descriptions.",
   "type": "module",
   "engines": {
